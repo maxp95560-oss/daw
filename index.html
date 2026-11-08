@@ -31,6 +31,14 @@
 // publiée par le PC qui héberge) puis y redirige, en gardant une éventuelle invitation (#invite=…).
 const REPO_API = 'https://api.github.com/repos/maxp95560-oss/daw/contents/lien.json';
 const $ = (id) => document.getElementById(id);
+const store = {
+  get() { try { return localStorage.getItem('daw.session') || ''; } catch (_) { return ''; } },
+  set(v) { try { v ? localStorage.setItem('daw.session', v) : localStorage.removeItem('daw.session'); } catch (_) {} },
+};
+// Le studio renvoie ici la session après une connexion (#s=…) ou une déconnexion (#s=) :
+// cette page garde la session, pour rester connecté même quand l'adresse technique change.
+const h = new URLSearchParams(location.hash.slice(1));
+if (h.has('s')) { store.set(h.get('s')); h.delete('s'); history.replaceState(null, '', location.pathname + (h.toString() ? '#' + h : '')); }
 
 async function currentLink() {
   try {
@@ -55,7 +63,9 @@ async function go() {
   let u = '';
   try { u = await currentLink(); } catch (_) {}
   if (u && /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(u) && await reachable(u)) {
-    location.replace(u + '/' + location.hash);
+    const p = new URLSearchParams(location.hash.slice(1));
+    if (store.get()) p.set('s', store.get());
+    location.replace(u + '/' + (p.toString() ? '#' + p : ''));
     return;
   }
   $('spin').hidden = true; $('retry').hidden = false;
