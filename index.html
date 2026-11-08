@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DAW partagé</title>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { display: flex; align-items: center; justify-content: center; font: 15px "Segoe UI", Tahoma, sans-serif; color: #c9d1d6;
+    background: radial-gradient(circle at 50% 30%, #3a4247, #1b1f22); }
+  .box { width: min(380px, 90vw); background: #3a4247; border: 1px solid #1b1f22; border-radius: 6px; padding: 26px; box-shadow: 0 10px 40px rgba(0,0,0,.6); text-align: center; }
+  .brand { font-weight: 700; font-size: 22px; color: #f5a742; letter-spacing: 1px; }
+  .brand span { font-size: 11px; color: #87939a; margin-left: 4px; font-weight: 400; letter-spacing: 0; }
+  .spin { width: 28px; height: 28px; margin: 20px auto 12px; border: 3px solid #2a3034; border-top-color: #f5a742; border-radius: 50%; animation: s 0.9s linear infinite; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  p { margin: 8px 0; line-height: 1.4; }
+  .dim { color: #87939a; font-size: 13px; }
+  button { margin-top: 14px; font: inherit; padding: 8px 18px; border-radius: 3px; border: 1px solid #1b1f22; cursor: pointer; background: linear-gradient(#f7b968, #d98a26); color: #1a1a1a; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="brand">DAW<span>partagé</span></div>
+  <div id="spin" class="spin"></div>
+  <p id="msg">Connexion au studio…</p>
+  <p id="sub" class="dim"></p>
+  <button id="retry" hidden>Réessayer</button>
+</div>
+<script>
+// Cette page a une adresse fixe. Elle lit l'adresse du moment du studio (lien.json,
+// publiée par le PC qui héberge) puis y redirige, en gardant une éventuelle invitation (#invite=…).
+const REPO_API = 'https://api.github.com/repos/maxp95560-oss/daw/contents/lien.json';
+const $ = (id) => document.getElementById(id);
+
+async function currentLink() {
+  try {
+    const r = await fetch(REPO_API + '?t=' + Date.now(), { cache: 'no-store', headers: { Accept: 'application/vnd.github.raw+json' } });
+    if (r.ok) return (await r.json()).url;
+  } catch (_) {}
+  const r = await fetch('lien.json?t=' + Date.now(), { cache: 'no-store' });  // secours : copie publiée par GitHub Pages
+  return (await r.json()).url;
+}
+
+async function reachable(u) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 8000);
+  try { const r = await fetch(u + '/api/ping', { signal: ctl.signal, cache: 'no-store' }); return r.ok; }
+  catch (_) { return false; }
+  finally { clearTimeout(timer); }
+}
+
+async function go() {
+  $('spin').hidden = false; $('retry').hidden = true;
+  $('msg').textContent = 'Connexion au studio…'; $('sub').textContent = '';
+  let u = '';
+  try { u = await currentLink(); } catch (_) {}
+  if (u && /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(u) && await reachable(u)) {
+    location.replace(u + '/' + location.hash);
+    return;
+  }
+  $('spin').hidden = true; $('retry').hidden = false;
+  $('msg').textContent = 'Le studio est éteint pour l\'instant.';
+  $('sub').textContent = 'Le PC qui héberge la session doit être allumé et connecté à internet. S\'il vient de démarrer, attendez une minute puis réessayez.';
+}
+$('retry').addEventListener('click', go);
+go();
+</script>
+</body>
+</html>
